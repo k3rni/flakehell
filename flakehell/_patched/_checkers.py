@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List, Tuple, Optional
 
 from flake8.checker import Manager, FileChecker
@@ -7,6 +8,7 @@ from .._logic import (
     get_plugin_name, get_plugin_rules, check_include, make_baseline,
     Snapshot, prepare_cache,
 )
+from .._constants import TESTS_EXCLUDE_CODES, TESTS_EXCLUDE_PLUGINS
 
 
 class FlakeHellCheckersManager(Manager):
@@ -59,10 +61,16 @@ class FlakeHellCheckersManager(Manager):
 
                         self.checkers.append(checker)
 
-    def _make_checker(self, argument, filename, check_type,
+    def _make_checker(self, argument, filename: str, check_type: str,
                       check) -> Optional['FlakeHellFileChecker']:
-        # do not run plugins without rules specified
         plugin_name = get_plugin_name(check)
+
+        # do not run some plugins for tests directory
+        if 'tests' in Path(filename).parts:
+            if plugin_name in TESTS_EXCLUDE_PLUGINS:
+                return None
+
+        # do not run plugins without rules specified
         rules = get_plugin_rules(
             plugin_name=plugin_name,
             plugins=self.options.plugins,
@@ -139,6 +147,16 @@ class FlakeHellCheckersManager(Manager):
         )
         reported_results_count = 0
         for (error_code, line_number, column, text, physical_line) in results:
+            # check if code is excluded for tests dir
+            if 'tests' in Path(filename).parts:
+                if error_code in TESTS_EXCLUDE_CODES.get(plugin_name, []):
+                    continue
+
+            # check if code is excluded in the config
+            if not check_include(code=error_code, rules=rules):
+                continue
+
+            # check if code is excluded in the baseline
             if self.baseline:
                 digest = make_baseline(
                     path=filename,
@@ -148,9 +166,6 @@ class FlakeHellCheckersManager(Manager):
                 )
                 if digest in self.baseline:
                     continue
-
-            if not check_include(code=error_code, rules=rules):
-                continue
 
             reported_results_count += self.style_guide.handle_error(
                 code=error_code,

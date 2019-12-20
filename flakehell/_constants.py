@@ -32,7 +32,14 @@ class ExitCodes(IntEnum):
     TOO_MANY_ARGS = 31
 
 
-KNOWN_PLUGINS = [
+TESTS_EXCLUDE_PLUGINS = frozenset({'flake8-docstrings', 'flake8-bandit'})
+TESTS_EXCLUDE_CODES = {
+    'pylint': ('W0613',),
+    'wemake-python-styleguide': ('WPS118', 'WPS202', 'WPS218'),
+}
+
+
+KNOWN_PLUGINS = (
     'dlint',
     'flake8-alfred',
     'flake8-annotations-complexity',
@@ -66,4 +73,4 @@ KNOWN_PLUGINS = [
     # built-in in flake8
     'pycodestyle',
     'pyflakes',
-]
+)
